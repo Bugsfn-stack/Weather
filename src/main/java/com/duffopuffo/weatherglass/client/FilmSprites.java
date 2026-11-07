@@ -291,6 +291,8 @@ public final class FilmSprites {
          boolean forceSnow = false;
          if (probe != lastProbe) {
             lastProbe = probe;
+            WeatherGlass.LOG.info("[diag] film probe sprite {} missing={} size={}x{} at {},{}",
+               RAIN[0][0], probe == atlas.getMissingSprite(), probe.getContents().getWidth(), probe.getContents().getHeight(), probe.getX(), probe.getY());
             target = atlas.getGlTexture();
             maxLevel = target.getMipLevels() - 1;
             lastRainPixels = 0;
@@ -383,6 +385,12 @@ public final class FilmSprites {
          uploadBreath(atlas, pixels);
          nanos = nanos + (System.nanoTime() - start);
          ticks++;
+         if (ticks % 600 == 1) {
+            WeatherGlass.LOG.info("[diag] tick {}: rainGradient={} flags rain={} snow={} frost={} dust={} filmQuads rain={} snow={} frost={} dust={} enabled={} rainOn={} snowOn={}",
+               ticks, level.getRainGradient(1.0F), rainFilms, snowFilms, frostFilms, dustFilms,
+               FilmLayout.FILMS.get(), FilmLayout.SNOW_FILMS.get(), FilmLayout.FROST_FILMS.get(), FilmLayout.DUST_FILMS.get(),
+               config.enabled(), config.rainOn(), config.snowOn());
+         }
       }
    }
 
@@ -515,6 +523,15 @@ public final class FilmSprites {
 
    private static void upload(SpriteAtlasTexture atlas, Identifier id, int size0, byte[] level0, int levels) {
       Sprite sprite = atlas.getSprite(id);
+      if (sprite == atlas.getMissingSprite()) {
+         if (!warned) {
+            warned = true;
+            WeatherGlass.LOG.warn("Film sprite {} is missing from the block atlas (textures not packaged?), it will not show", id);
+         }
+
+         return;
+      }
+
       int x = sprite.getX();
       int y = sprite.getY();
       if (sprite.getContents().getWidth() == size0 && sprite.getContents().getHeight() == size0) {
