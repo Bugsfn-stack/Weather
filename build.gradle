@@ -22,6 +22,8 @@ dependencies {
 
 // The film sprites (rain, snow, frost, breath, dust) must exist in the block atlas so the mod can draw into them.
 // Generate the 792 placeholder PNGs from film-templates at build time instead of committing them.
+// DEBUG SWITCH: true = solid coloured film sprites and no pixel uploads (diagnostic build). Set to false for the real mod.
+def debugFilms = true
 def filmOut = layout.buildDirectory.dir('generated/film-textures')
 def generateFilmTextures = tasks.register('generateFilmTextures') {
     inputs.dir('film-templates')
@@ -32,7 +34,19 @@ def generateFilmTextures = tasks.register('generateFilmTextures') {
         // templates per kind are ordered 16, 64, 32 px; kinds: 0 rain/snow, 1 sand, 2 frost, 3 inside frost, 4 red sand, 5 breath
         def tpl = { int kind, int res -> file("film-templates/t${String.format('%02d', kind * 3 + [0, 2, 1][res])}.png").toPath() }
         def put = { String name, int kind, int res ->
-            java.nio.file.Files.copy(tpl(kind, res), dir.resolve(name + '.png'), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            if (debugFilms) {
+                // DEBUG: solid visible squares, so we can see whether the film quads render at all
+                int size = [16, 32, 64][res]
+                int[] colors = [0xFF0000, 0x00A0FF, 0x00FF00, 0xFFFF00, 0xFF00FF, 0xFFFFFF]  // by kind
+                def img = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+                for (int px = 0; px < size; px++) for (int py = 0; py < size; py++) img.setRGB(px, py, (170 << 24) | colors[kind])
+                javax.imageio.ImageIO.write(img, 'png', dir.resolve(name + '.png').toFile())
+            } else {
+                java.nio.file.Files.copy(tpl(kind, res), dir.resolve(name + '.png'), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            }
+        }
+        if (debugFilms) {
+            dir.resolve('../../debug_films.txt').normalize().toFile().text = 'debug'
         }
         ['16', '', '64'].eachWithIndex { p, res ->
             (0..<64).each { i -> put("rain${p}_${i.intdiv(4)}_${i % 4}", 0, res) }
