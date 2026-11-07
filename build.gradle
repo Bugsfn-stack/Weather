@@ -22,8 +22,8 @@ dependencies {
 
 // The film sprites (rain, snow, frost, breath, dust) must exist in the block atlas so the mod can draw into them.
 // Generate the 792 placeholder PNGs from film-templates at build time instead of committing them.
-// DEBUG SWITCH: true = solid coloured film sprites and no pixel uploads (diagnostic build). Set to false for the real mod.
-def debugFilms = true
+// DEBUG SWITCH: 'static' = solid coloured sprites, no uploads; 'upload' = coloured sprites + forced solid green upload; '' = normal mod.
+def debugFilms = 'upload'  // 'static' | 'upload' | '' (off)
 def filmOut = layout.buildDirectory.dir('generated/film-textures')
 def generateFilmTextures = tasks.register('generateFilmTextures') {
     inputs.dir('film-templates')
@@ -46,7 +46,7 @@ def generateFilmTextures = tasks.register('generateFilmTextures') {
             }
         }
         if (debugFilms) {
-            dir.resolve('../../debug_films.txt').normalize().toFile().text = 'debug'
+            dir.resolve('../../debug_films.txt').normalize().toFile().text = debugFilms
         }
         ['16', '', '64'].eachWithIndex { p, res ->
             (0..<64).each { i -> put("rain${p}_${i.intdiv(4)}_${i % 4}", 0, res) }
