@@ -1,0 +1,67 @@
+plugins {
+    id 'fabric-loom' version '1.18.2'
+    id 'maven-publish'
+}
+
+version = "${project.mod_version}+${project.minecraft_version}-fabric"
+group = project.maven_group
+base { archivesName = project.archives_base_name }
+
+repositories {
+    maven { url = 'https://maven.terraformersmc.com/releases/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+    modLocalRuntime "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+// The film sprites (rain, snow, frost, breath, dust) must exist in the block atlas so the mod can draw into them.
+// Generate the 792 placeholder PNGs from film-templates at build time instead of committing them.
+def filmOut = layout.buildDirectory.dir('generated/film-textures')
+def generateFilmTextures = tasks.register('generateFilmTextures') {
+    inputs.dir('film-templates')
+    outputs.dir(filmOut)
+    doLast {
+        def dir = filmOut.get().asFile.toPath().resolve('assets/weatherglass/textures/block')
+        java.nio.file.Files.createDirectories(dir)
+        // templates per kind are ordered 16, 64, 32 px; kinds: 0 rain/snow, 1 sand, 2 frost, 3 inside frost, 4 red sand, 5 breath
+        def tpl = { int kind, int res -> file("film-templates/t${String.format('%02d', kind * 3 + [0, 2, 1][res])}.png").toPath() }
+        def put = { String name, int kind, int res ->
+            java.nio.file.Files.copy(tpl(kind, res), dir.resolve(name + '.png'), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        }
+        ['16', '', '64'].eachWithIndex { p, res ->
+            (0..<64).each { i -> put("rain${p}_${i.intdiv(4)}_${i % 4}", 0, res) }
+            (0..<32).each { i -> put("snow${p}_${i.intdiv(4)}_${i % 4}", 0, res) }
+            (0..<16).each { i -> put("frost${p}_${i}", 2, res); put("frostin${p}_${i}", 3, res) }
+            (0..<8).each { i -> put("breath${p}_${i}", 5, res) }
+            (0..<64).each { i ->
+                put("dust${p}_${i.intdiv(16)}_${i % 16}", 1, res)
+                put("reddust${p}_${i.intdiv(16)}_${i % 16}", 4, res)
+            }
+        }
+    }
+}
+sourceSets.main.resources.srcDir(files(filmOut).builtBy(generateFilmTextures))
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = 'UTF-8'
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
