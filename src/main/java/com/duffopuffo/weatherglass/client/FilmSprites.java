@@ -291,7 +291,7 @@ public final class FilmSprites {
          boolean forceSnow = false;
          if (probe != lastProbe) {
             lastProbe = probe;
-            WeatherGlass.LOG.info("[diag] DEBUG_STATIC={} film probe sprite {} missing={} size={}x{} at {},{}",
+            WeatherGlass.LOG.info("[diag] DEBUG_MODE='{}' film probe sprite {} missing={} size={}x{} at {},{}",
                DEBUG_STATIC, RAIN[0][0], probe == atlas.getMissingSprite(), probe.getContents().getWidth(), probe.getContents().getHeight(), probe.getX(), probe.getY());
             target = atlas.getGlTexture();
             maxLevel = target.getMipLevels() - 1;
@@ -385,6 +385,15 @@ public final class FilmSprites {
          uploadBreath(atlas, pixels);
          nanos = nanos + (System.nanoTime() - start);
          ticks++;
+         if (DEBUG_STATIC.equals("upload") && ticks == 100) {
+            for (int r = 0; r < 3; r++) {
+               int px = PIXELS[r];
+               uploadStrips(atlas, RAIN[r], px, strip -> new byte[px * px * 16], strip -> true, true);
+            }
+
+            WeatherGlass.LOG.info("[diag] forced solid green upload of all rain sprites");
+         }
+
          if (ticks % 600 == 1) {
             WeatherGlass.LOG.info("[diag] tick {}: rainGradient={} flags rain={} snow={} frost={} dust={} filmQuads rain={} snow={} frost={} dust={} enabled={} rainOn={} snowOn={}",
                ticks, level.getRainGradient(1.0F), rainFilms, snowFilms, frostFilms, dustFilms,
@@ -552,11 +561,29 @@ public final class FilmSprites {
       }
    }
 
-   private static final boolean DEBUG_STATIC = FilmSprites.class.getResource("/assets/weatherglass/debug_films.txt") != null;
+   // DEBUG: "static" = skip all uploads, "upload" = upload solid green through the real upload path, "" = normal
+   private static final String DEBUG_STATIC = debugMode();
+
+   private static String debugMode() {
+      try (java.io.InputStream in = FilmSprites.class.getResourceAsStream("/assets/weatherglass/debug_films.txt")) {
+         return in == null ? "" : new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).trim();
+      } catch (java.io.IOException e) {
+         return "";
+      }
+   }
 
    private static void write(int level, int x, int y, int size, byte[] pixels) {
-      if (DEBUG_STATIC) {
+      if (DEBUG_STATIC.equals("static")) {
          return;
+      }
+
+      if (DEBUG_STATIC.equals("upload")) {
+         for (int i = 0; i < size * size * 4; i += 4) {
+            pixels[i] = 0;
+            pixels[i + 1] = (byte)255;
+            pixels[i + 2] = 0;
+            pixels[i + 3] = (byte)200;
+         }
       }
 
       ByteBuffer buffer = buffer(level, size);
