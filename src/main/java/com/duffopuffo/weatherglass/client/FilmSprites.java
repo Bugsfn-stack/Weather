@@ -291,8 +291,8 @@ public final class FilmSprites {
          boolean forceSnow = false;
          if (probe != lastProbe) {
             lastProbe = probe;
-            WeatherGlass.LOG.info("[diag] film probe sprite {} missing={} size={}x{} at {},{}",
-               RAIN[0][0], probe == atlas.getMissingSprite(), probe.getContents().getWidth(), probe.getContents().getHeight(), probe.getX(), probe.getY());
+            WeatherGlass.LOG.info("[diag] DEBUG_STATIC={} film probe sprite {} missing={} size={}x{} at {},{}",
+               DEBUG_STATIC, RAIN[0][0], probe == atlas.getMissingSprite(), probe.getContents().getWidth(), probe.getContents().getHeight(), probe.getX(), probe.getY());
             target = atlas.getGlTexture();
             maxLevel = target.getMipLevels() - 1;
             lastRainPixels = 0;
@@ -552,7 +552,13 @@ public final class FilmSprites {
       }
    }
 
+   private static final boolean DEBUG_STATIC = FilmSprites.class.getResource("/assets/weatherglass/debug_films.txt") != null;
+
    private static void write(int level, int x, int y, int size, byte[] pixels) {
+      if (DEBUG_STATIC) {
+         return;
+      }
+
       ByteBuffer buffer = buffer(level, size);
       buffer.put(pixels, 0, size * size * 4);
       buffer.flip();
